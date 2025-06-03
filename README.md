@@ -1,7 +1,18 @@
-## Current Workflow for custom plugin validation on Velociraptor
+## Current Workflow for custom plugin (Ollama) connection to Ollama on Velociraptor
 1. Build from source on Linux
 2. go to velociraptor/output, run ./vecociraptor gui
-3. go to notebook and run SELECT * FROM info() WHERE Name = "ollama"
+3. go to notebooks tab, create a new notebook and VQL cell, execute the following VQL query:
+
+SELECT *
+FROM ollama(
+    model  = "qwen2.5:latest",      
+    input  = dict(heartbeat="ping"),
+    prompt = "Reply with the single word: PONG."
+)
+
+The following LLM response should be observed:
+![test_ollama_connection](https://github.com/user-attachments/assets/346c79d6-755d-45b1-9255-f014bcae5c7c)
+
 
 # Velociraptor - Endpoint visibility and collection tool.
 
