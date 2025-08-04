@@ -14,6 +14,16 @@ The following LLM response should be observed:
 ![test_ollama_connection](https://github.com/user-attachments/assets/346c79d6-755d-45b1-9255-f014bcae5c7c)
 
 
+## Velociraptor server and client setup 
+The current environment is built on a linux server with windows clients
+The environment can be setup as follows:
+1. Install Ubuntu-22.04 on WSL 
+2. Setup server and client machines according to the video: https://www.youtube.com/watch?v=r7gwccviY7Y&t=2s
+3. Start the server: ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml frontend -v
+
+<img width="1536" height="206" alt="image" src="https://github.com/user-attachments/assets/f6a5ee97-28e3-4dd4-be87-24ae4cdebd3d" />
+* Verify that the client is connected by clicking on the search bar icon, it should appear as above. 
+
 # Velociraptor - Endpoint visibility and collection tool.
 
 Velociraptor is a tool for collecting host based state information
