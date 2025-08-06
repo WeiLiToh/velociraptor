@@ -1,19 +1,5 @@
-## Current Workflow for custom plugin (Ollama) connection to Ollama on Velociraptor
-1. Build from source on Linux
-2. go to velociraptor/output, run ./vecociraptor gui
-3. go to notebooks tab, create a new notebook and VQL cell, execute the following VQL query:
-
-SELECT *
-FROM ollama(
-    model  = "qwen2.5:latest",      
-    input  = dict(heartbeat="ping"),
-    prompt = "Reply with the single word: PONG."
-)
-
-The following LLM response should be observed:
-![test_ollama_connection](https://github.com/user-attachments/assets/346c79d6-755d-45b1-9255-f014bcae5c7c)
-
 ## Building Velociraptor binary from source with ollama plugin [WSL Ubuntu-22.04]
+
 1. git clone https://github.com/Velocidex/velociraptor.git
 2. place ollama.go in velociraptor/vql/common
 3. cd velociraptor
@@ -24,17 +10,95 @@ The following LLM response should be observed:
 8. Compiled Velociraptor binary can be found in velociraptor/output (e.g. velociraptor-v0.74.3-linux-amd64)
 
 ## Server and client setup
-Note that the current environment is being built on WSL Ubuntu 22.04 
-1. Install Ubuntu-22.04 on WSL 
-2. ./velociraptor-v0.74.3-linux-amd64 config generate > velociraptor.config.yaml 
-3. nano velociraptor.config.yaml and replace all instances of server_url and hostname [default localhost or 127.0.0.1] with the IP address of your server.
-4. 
-5.
-6.     [Video reference: https://www.youtube.com/watch?v=r7gwccviY7Y&t=2s]
-7. Start the server: ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml frontend -v
 
-<img width="1536" height="206" alt="image" src="https://github.com/user-attachments/assets/f6a5ee97-28e3-4dd4-be87-24ae4cdebd3d" />
-* Verify that the client is connected by clicking on the search bar icon, it should appear as above. 
+Note that the current environment is being built on WSL Ubuntu 22.04
+
+1. Install Ubuntu-22.04 on WSL
+2. ./velociraptor-v0.74.3-linux-amd64 config generate > velociraptor.config.yaml
+3. nano velociraptor.config.yaml and replace all instances of localhost and 127.0.0.1 with the IP address of your server.
+4. To add administrator: --config velociraptor.config.yaml user add admin --role administrator (current credentials are username: admin and password: 123456)
+5. Create client configuration file: ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml config client > client.config.yaml
+6. Obtain windows executable of Velociraptor from https://github.com/Velocidex/velociraptor/releases: wget https://github.com/Velocidex/velociraptor/releases/download/v0.74/velociraptor-v0.74.1-windows-amd64.exe)
+7. Repackage Velociraptor executable for windows client: ./velociraptor-v0.74.3-linux-amd64 config repack --exe velociraptor-v0.74.1-windows-amd64.exe client.config.yaml repackaged_velociraptor.exe
+8. Copy repackaged_velociraptor.exe into windows client machine
+9. Install the repackaged velociraptor executable as a service on the Windows client machine: .\repackaged_velociraptor.exe service install (Verify that Velociraptor can be found in services on the Windows machine)
+10. Start the server: ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml frontend -v (<IP addr of server>:8889)
+11. Verify that the client machine is connected to the server by clicking on the search icon.
+    <img width="1536" height="206" alt="image" src="https://github.com/user-attachments/assets/f6a5ee97-28e3-4dd4-be87-24ae4cdebd3d" />
+
+## Threat Hunting on Velociraptor
+
+1. Hunt Manager --> New Hunt --> Select Artifacts (e.g. Windows.Sysinternals.Autoruns/Windows.System.Pslist/Windows.System.TaskScheduler)
+2. Deselect "All" and select winlogon entries for Windows.Sysinternals.Autoruns under the "configure parameters" tab
+3. Launch artifact and then run hunt.
+4. Post-processing of information can then be carried out in the notebook
+
+## The below commands creates a dummy CSE that points to a non-existent DLL in %ProgramData% for Windows.Sysinternals.Autoruns:
+
+### Path for DLL is in user-writable location and DLL is missing/unsigned --> Autoruns shows File not found in the row.
+
+### Run in an elevated PowerShell
+
+$guid = '{11111111-1111-1111-1111-111111111111}'
+$key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\GpExtensions\$guid"
+
+### Suspicious, user-writable location that exists by default. The DLL will not be written.
+
+$path = 'C:\ProgramData\bad\gp_cse.dll'
+
+### Create the key and required values
+
+New-Item -Path $key -Force | Out-Null
+New-ItemProperty -Path $key -Name 'DllName' -Value $path -PropertyType String -Force | Out-Null
+New-ItemProperty -Path $key -Name 'ProcessGroupPolicy' -Value 1 -PropertyType DWord -Force | Out-Null
+New-ItemProperty -Path $key -Name 'NoBackgroundPolicy' -Value 0 -PropertyType DWord -Force | Out-Null
+New-ItemProperty -Path $key -Name 'Order' -Value 1 -PropertyType DWord -Force | Out-Null
+
+### Optional: create the folder but NOT the DLL (keeps "File not found" finding)
+
+New-Item -ItemType Directory -Path 'C:\ProgramData\bad' -Force | Out-Null
+
+### To revert the changes:
+
+reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\GpExtensions\{11111111-1111-1111-1111-111111111111}" /f
+
+### The below commands are used to create BadUpdater for Windows.System.TaskScheduler:
+
+#### 1) Creating an unsigned binary 
+
+$badDir  = 'C:\ProgramData\bad'
+$exe = "$badDir\evil.exe"
+New-Item -ItemType Directory -Path $badDir -Force | Out-Null
+fsutil file createnew $exe 1024 | Out-Null # 1 KB -> NotTrusted
+
+#### 2) Minimal Task XML (Executes every 5 min, runs with the HIGHEST privilege on SYSTEM)
+
+$xml = @"
+
+<?xml version="1.0" encoding="UTF-16"?>
+<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task" version="1.2">
+  <RegistrationInfo><Description>Bad updater demo</Description></RegistrationInfo>
+  <Principals>
+    <Principal id="Author"><UserId>SYSTEM</UserId><RunLevel>HighestAvailable</RunLevel></Principal>
+  </Principals>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ss')</StartBoundary>
+      <ScheduleByMinute><MinutesInterval>5</MinutesInterval></ScheduleByMinute>
+    </CalendarTrigger>
+  </Triggers>
+  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy></Settings>
+  <Actions Context="Author"><Exec><Command>$exe</Command></Exec></Actions>
+</Task>
+"@
+
+#### 3) Drop it under Tasks\Lab (artifact’s default glob will pick it up)
+
+$taskDir  = 'C:\Windows\System32\Tasks\Lab'
+$taskFile = "$taskDir\BadUpdater"   # no .xml extension on disk
+New-Item -ItemType Directory -Path $taskDir -Force | Out-Null
+[System.IO.File]::WriteAllText($taskFile, $xml, [System.Text.Encoding]::Unicode) # UTF-16LE
+
 
 
 
