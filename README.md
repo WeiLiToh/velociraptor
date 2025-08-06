@@ -1,39 +1,82 @@
-## Building Velociraptor binary from source with ollama plugin [WSL Ubuntu-22.04]
-
-1. git clone https://github.com/Velocidex/velociraptor.git
-2. place ollama.go in velociraptor/vql/common
-3. cd velociraptor
-4. cd gui/velociraptor
-5. npm install
-6. cd ../..
-7. make linux
-8. Compiled Velociraptor binary can be found in velociraptor/output (e.g. velociraptor-v0.74.3-linux-amd64)
-
-## Server and client setup
-
-Note that the current environment is being built on WSL Ubuntu 22.04
-
+## Building Velociraptor Binary from Source with Ollama Plugin [WSL Ubuntu-22.04]
+1. Clone repository:
+   ```bash
+   git clone https://github.com/Velocidex/velociraptor.git
+   ```
+2. Place `ollama.go` in `velociraptor/vql/common`
+3. Navigate to project:
+   ```bash
+   cd velociraptor
+   cd gui/velociraptor
+   ```
+4. Install dependencies:
+   ```bash
+   npm install
+   ```
+5. Return to root directory:
+   ```bash
+   cd ../..
+   ```
+6. Build Linux binary:
+   ```bash
+   make linux
+   ```
+7. Find compiled binary in `velociraptor/output` (e.g., `velociraptor-v0.74.3-linux-amd64`)
+---
+## Server and Client Setup (WSL Ubuntu 22.04)
 1. Install Ubuntu-22.04 on WSL
-2. ./velociraptor-v0.74.3-linux-amd64 config generate > velociraptor.config.yaml
-3. nano velociraptor.config.yaml and replace all instances of localhost and 127.0.0.1 with the IP address of your server.
-4. To add administrator: --config velociraptor.config.yaml user add admin --role administrator (current credentials are username: admin and password: 123456)
-5. Create client configuration file: ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml config client > client.config.yaml
-6. Obtain windows executable of Velociraptor from https://github.com/Velocidex/velociraptor/releases: wget https://github.com/Velocidex/velociraptor/releases/download/v0.74/velociraptor-v0.74.1-windows-amd64.exe)
-7. Repackage Velociraptor executable for windows client: ./velociraptor-v0.74.3-linux-amd64 config repack --exe velociraptor-v0.74.1-windows-amd64.exe client.config.yaml repackaged_velociraptor.exe
-8. Copy repackaged_velociraptor.exe into windows client machine
-9. Install the repackaged velociraptor executable as a service on the Windows client machine: .\repackaged_velociraptor.exe service install (Verify that Velociraptor can be found in services on the Windows machine)
-10. Start the server: ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml frontend -v (<IP addr of server>:8889)
-11. Verify that the client machine is connected to the server by clicking on the search icon.
-    <img width="1536" height="206" alt="image" src="https://github.com/user-attachments/assets/f6a5ee97-28e3-4dd4-be87-24ae4cdebd3d" />
-
-## Threat Hunting on Velociraptor
-
-1. Hunt Manager --> New Hunt --> Select Artifacts (e.g. Windows.Sysinternals.Autoruns/Windows.System.Pslist/Windows.System.TaskScheduler)
-2. Deselect "All" and select winlogon entries for Windows.Sysinternals.Autoruns under the "configure parameters" tab
-3. Launch artifact and then run hunt.
-4. Post-processing of information can then be carried out in the notebook
-
-### Working VQL query that passes artifact output from Windows.Sysinternals.Autoruns to the Ollama endpoint for inference:
+2. Generate config:
+   ```bash
+   ./velociraptor-v0.74.3-linux-amd64 config generate > velociraptor.config.yaml
+   ```
+3. Update server IP in config:
+   ```bash
+   nano velociraptor.config.yaml  # Replace all localhost/127.0.0.1 with server IP
+   ```
+4. Add administrator user:
+   ```bash
+   ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml user add admin --role administrator
+   ```
+   Credentials: `admin`/`123456`
+5. Create client config:
+   ```bash
+   ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml config client > client.config.yaml
+   ```
+6. Download Windows executable:
+   ```bash
+   wget https://github.com/Velocidex/velociraptor/releases/download/v0.74/velociraptor-v0.74.1-windows-amd64.exe
+   ```
+7. Repackage for Windows:
+   ```bash
+   ./velociraptor-v0.74.3-linux-amd64 config repack --exe velociraptor-v0.74.1-windows-amd64.exe client.config.yaml repackaged_velociraptor.exe
+   ```
+8. Copy `repackaged_velociraptor.exe` to Windows client machine
+9. Install as Windows service (on client machine):
+   ```powershell
+   .\repackaged_velociraptor.exe service install
+   ```
+   Verify service in Windows Services Manager
+10. Start server:
+    ```bash
+    ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml frontend -v
+    ```
+    Server URL: `<IP addr of server>:8889`
+11. Verify client connection in UI:
+    <img width="1536" height="206" alt="Client Connection Verification" src="https://github.com/user-attachments/assets/f6a5ee97-28e3-4dd4-be87-24ae4cdebd3d" />
+---
+## Threat Hunting with Velociraptor
+1. **Hunt Manager** → **New Hunt** → Select Artifacts:
+   - `Windows.Sysinternals.Autoruns`
+   - `Windows.System.Pslist`
+   - `Windows.System.TaskScheduler`
+2. Under **Configure Parameters**:
+   - Deselect "All"
+   - Select winlogon entries for `Windows.Sysinternals.Autoruns`
+3. Launch artifact → Run hunt
+4. Analyze results in notebook
+### VQL Query Examples
+#### Autoruns → Ollama Inference
+```sql
 SELECT *
 FROM ollama(
   model = "qwen2.5:latest",
@@ -45,8 +88,9 @@ FROM ollama(
 Identify any suspicious winlogon entries based on the given %INPUT%
 '''
 )
-
-### Working VQL query that passes artifact output from Windows.System.TaskScheduler to the Ollama endpoint for inference:
+```
+#### Task Scheduler → Ollama Inference
+```sql
 SELECT *
 FROM ollama(
   model = "qwen2.5:latest",
@@ -58,49 +102,38 @@ FROM ollama(
 Tell me which tasks you think are malicious and why %INPUT%
 '''
 )
-
-## The below commands creates a dummy CSE that points to a non-existent DLL in %ProgramData% for Windows.Sysinternals.Autoruns:
-
-### Path for DLL is in user-writable location and DLL is missing/unsigned --> Autoruns shows File not found in the row.
-
-### Run in an elevated PowerShell
-
+```
+---
+## Creating Test Artifacts
+### 1. Suspicious Winlogon Entry (File Not Found)
+**Run in elevated PowerShell**:
+```powershell
 $guid = '{11111111-1111-1111-1111-111111111111}'
 $key = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\GpExtensions\$guid"
-
-### Suspicious, user-writable location that exists by default. The DLL will not be written.
-
-$path = 'C:\ProgramData\bad\gp_cse.dll'
-
-### Create the key and required values
-
+$path = 'C:\ProgramData\bad\gp_cse.dll'  # User-writable location
+# Create registry entries
 New-Item -Path $key -Force | Out-Null
 New-ItemProperty -Path $key -Name 'DllName' -Value $path -PropertyType String -Force | Out-Null
 New-ItemProperty -Path $key -Name 'ProcessGroupPolicy' -Value 1 -PropertyType DWord -Force | Out-Null
 New-ItemProperty -Path $key -Name 'NoBackgroundPolicy' -Value 0 -PropertyType DWord -Force | Out-Null
 New-ItemProperty -Path $key -Name 'Order' -Value 1 -PropertyType DWord -Force | Out-Null
-
-### Optional: create the folder but NOT the DLL (keeps "File not found" finding)
-
+# Create directory (without DLL)
 New-Item -ItemType Directory -Path 'C:\ProgramData\bad' -Force | Out-Null
-
-### To revert the changes:
-
+```
+**Revert changes**:
+```powershell
 reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\GpExtensions\{11111111-1111-1111-1111-111111111111}" /f
-
-### The below commands are used to create BadUpdater for Windows.System.TaskScheduler:
-
-#### 1) Creating an unsigned binary 
-
-$badDir  = 'C:\ProgramData\bad'
+```
+### 2. Malicious Scheduled Task (BadUpdater)
+**Run in elevated PowerShell**:
+```powershell
+# Create unsigned binary
+$badDir = 'C:\ProgramData\bad'
 $exe = "$badDir\evil.exe"
 New-Item -ItemType Directory -Path $badDir -Force | Out-Null
-fsutil file createnew $exe 1024 | Out-Null # 1 KB -> NotTrusted
-
-#### 2) Minimal Task XML (Executes every 5 min, runs with the HIGHEST privilege on SYSTEM)
-
+fsutil file createnew $exe 1024 | Out-Null  # 1 KB → NotTrusted
+# Create task XML
 $xml = @"
-
 <?xml version="1.0" encoding="UTF-16"?>
 <Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task" version="1.2">
   <RegistrationInfo><Description>Bad updater demo</Description></RegistrationInfo>
@@ -117,16 +150,13 @@ $xml = @"
   <Actions Context="Author"><Exec><Command>$exe</Command></Exec></Actions>
 </Task>
 "@
-
-#### 3) Drop it under Tasks\Lab (artifact’s default glob will pick it up)
-
-$taskDir  = 'C:\Windows\System32\Tasks\Lab'
-$taskFile = "$taskDir\BadUpdater"   # no .xml extension on disk
+# Save task file
+$taskDir = 'C:\Windows\System32\Tasks\Lab'
+$taskFile = "$taskDir\BadUpdater"  # No .xml extension
 New-Item -ItemType Directory -Path $taskDir -Force | Out-Null
-[System.IO.File]::WriteAllText($taskFile, $xml, [System.Text.Encoding]::Unicode) # UTF-16LE
-
-
-
+[System.IO.File]::WriteAllText($taskFile, $xml, [System.Text.Encoding]::Unicode)
+```
+---
 
 # Velociraptor - Endpoint visibility and collection tool.
 
