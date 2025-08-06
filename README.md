@@ -13,16 +13,30 @@ FROM ollama(
 The following LLM response should be observed:
 ![test_ollama_connection](https://github.com/user-attachments/assets/346c79d6-755d-45b1-9255-f014bcae5c7c)
 
+## Building Velociraptor binary from source with ollama plugin [WSL Ubuntu-22.04]
+1. git clone https://github.com/Velocidex/velociraptor.git
+2. place ollama.go in velociraptor/vql/common
+3. cd velociraptor
+4. cd gui/velociraptor
+5. npm install
+6. cd ../..
+7. make linux
+8. Compiled Velociraptor binary can be found in velociraptor/output (e.g. velociraptor-v0.74.3-linux-amd64)
 
-## Velociraptor server and client setup 
-The current environment is built on a linux server with windows clients
-The environment can be setup as follows:
+## Server and client setup
+Note that the current environment is being built on WSL Ubuntu 22.04 
 1. Install Ubuntu-22.04 on WSL 
-2. Setup server and client machines according to the video: https://www.youtube.com/watch?v=r7gwccviY7Y&t=2s
-3. Start the server: ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml frontend -v
+2. ./velociraptor-v0.74.3-linux-amd64 config generate > velociraptor.config.yaml 
+3. nano velociraptor.config.yaml and replace all instances of server_url and hostname [default localhost or 127.0.0.1] with the IP address of your server.
+4. 
+5.
+6.     [Video reference: https://www.youtube.com/watch?v=r7gwccviY7Y&t=2s]
+7. Start the server: ./velociraptor-v0.74.3-linux-amd64 --config velociraptor.config.yaml frontend -v
 
 <img width="1536" height="206" alt="image" src="https://github.com/user-attachments/assets/f6a5ee97-28e3-4dd4-be87-24ae4cdebd3d" />
 * Verify that the client is connected by clicking on the search bar icon, it should appear as above. 
+
+
 
 # Velociraptor - Endpoint visibility and collection tool.
 
