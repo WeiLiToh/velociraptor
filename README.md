@@ -33,6 +33,32 @@ Note that the current environment is being built on WSL Ubuntu 22.04
 3. Launch artifact and then run hunt.
 4. Post-processing of information can then be carried out in the notebook
 
+### Working VQL query that passes artifact output from Windows.Sysinternals.Autoruns to the Ollama endpoint for inference:
+SELECT *
+FROM ollama(
+  model = "qwen2.5:latest",
+  query = {
+    SELECT `Image Path` FROM source(artifact="Windows.Sysinternals.Autoruns")
+    LIMIT 100
+  },
+  prompt = '''
+Identify any suspicious winlogon entries based on the given %INPUT%
+'''
+)
+
+### Working VQL query that passes artifact output from Windows.System.TaskScheduler to the Ollama endpoint for inference:
+SELECT *
+FROM ollama(
+  model = "qwen2.5:latest",
+  query = {
+    SELECT OSPath FROM source(artifact="Windows.System.TaskScheduler/Analysis")
+    LIMIT 50
+  },
+  prompt = '''
+Tell me which tasks you think are malicious and why %INPUT%
+'''
+)
+
 ## The below commands creates a dummy CSE that points to a non-existent DLL in %ProgramData% for Windows.Sysinternals.Autoruns:
 
 ### Path for DLL is in user-writable location and DLL is missing/unsigned --> Autoruns shows File not found in the row.
